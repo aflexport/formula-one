@@ -3,6 +3,7 @@
 import * as React from "react";
 import invariant from "./utils/invariant";
 import {equals as arrayEquals} from "./utils/array";
+import hookHistoryState from "./utils/hookHistoryState";
 import {changedFormState} from "./formState";
 
 import type {
@@ -39,6 +40,10 @@ import {
 } from "./EncodedPath";
 import FeedbackStrategies, {type FeedbackStrategy} from "./feedbackStrategies";
 import alwaysValid from "./alwaysValid";
+
+// setup nativation events
+// TODO(alex): There might be a better solution.
+hookHistoryState();
 
 export type ValidationOps<T> = {
   unregister: () => void,
@@ -329,6 +334,7 @@ type Props<T, ExtraSubmitData> = {|
   +onSubmit: (T, ExtraSubmitData, SubmitTips) => void,
   +onChange: T => void,
   +onValidation: boolean => void,
+  +onNavigate: () => void,
   +externalErrors: ExternalErrors,
   +children: (
     link: FieldLink<T>,
@@ -350,6 +356,7 @@ export default class Form<T, ExtraSubmitData> extends React.Component<
     onChange: () => {},
     onSubmit: () => {},
     onValidation: () => {},
+    onNavigate: () => {},
     feedbackStrategy: FeedbackStrategies.Always,
     externalErrors: null,
   };
@@ -410,11 +417,32 @@ export default class Form<T, ExtraSubmitData> extends React.Component<
         this.props.onValidation(isValid(this.state.formState));
       }
     );
+
+    // window.addEventListener("beforeunload", fn);
+    // TODO(alex): Refresh or close page trigger beforeunload event with a default
+    // confirm dialog box, which can't be customized.
+
+    window.addEventListener("popstate", this._handleNavigation);
+    window.addEventListener("fo-pushstate", this._handleNavigation);
+    window.addEventListener("fo-replacestate", this._handleNavigation);
+  }
+
+  componentWillUnmount() {
+    // window.removeEventListener("beforeunload", fn);
+    window.removeEventListener("popstate", this._handleNavigation);
+    window.removeEventListener("fo-pushstate", this._handleNavigation);
+    window.removeEventListener("fo-replacestate", this._handleNavigation);
   }
 
   // Public API: submit from the outside
   submit(extraData: ExtraSubmitData) {
     this._handleSubmit(extraData);
+  }
+
+  // Public API
+  editedButNotSubmited(): boolean {
+    const {pristine, submitted} = this.state;
+    return !(pristine || submitted);
   }
 
   // private
@@ -463,6 +491,10 @@ export default class Form<T, ExtraSubmitData> extends React.Component<
     this.setState({
       formState: [this.state.formState[0], newTree],
     });
+  };
+
+  _handleNavigation = () => {
+    this.props.onNavigate();
   };
 
   /**

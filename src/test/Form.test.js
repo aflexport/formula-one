@@ -1096,4 +1096,55 @@ describe("Form", () => {
       expect(commits).not.toBe(1 + N);
     });
   });
+
+  describe("Navigation protection", () => {
+    it("Calls onNavigate when page pushes state", () => {
+      const onNavigate = jest.fn(() => {});
+      const renderFn = jest.fn(() => null);
+      TestRenderer.create(
+        <Form initialValue={1} onNavigate={onNavigate}>
+          {renderFn}
+        </Form>
+      );
+
+      expect(onNavigate).toHaveBeenCalledTimes(0);
+      window.history.pushState({hello: "world"}, "", "/another_page");
+
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it("Calls onNavigate when page replaces state", () => {
+      const onNavigate = jest.fn();
+      const renderFn = jest.fn(() => null);
+      TestRenderer.create(
+        <Form initialValue={1} onNavigate={onNavigate}>
+          {renderFn}
+        </Form>
+      );
+
+      expect(onNavigate).toHaveBeenCalledTimes(0);
+      window.history.replaceState({hello: "world"}, "", "/another_page");
+
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it("Calls onNavigate when page goes back", () => {
+      const onNavigate = jest.fn();
+      const renderFn = jest.fn(() => null);
+
+      window.history.pushState({hello: "world"}, "", "/another_page");
+
+      TestRenderer.create(
+        <Form initialValue={1} onNavigate={onNavigate}>
+          {renderFn}
+        </Form>
+      );
+
+      expect(onNavigate).toHaveBeenCalledTimes(0);
+
+      window.history.back();
+
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+  });
 });
